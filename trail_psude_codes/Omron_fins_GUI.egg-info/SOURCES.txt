@@ -1,0 +1,6 @@
+setup.py
+Omron_fins_GUI.egg-info/PKG-INFO
+Omron_fins_GUI.egg-info/SOURCES.txt
+Omron_fins_GUI.egg-info/dependency_links.txt
+Omron_fins_GUI.egg-info/requires.txt
+Omron_fins_GUI.egg-info/top_level.txt
