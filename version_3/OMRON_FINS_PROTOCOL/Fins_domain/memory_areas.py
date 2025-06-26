@@ -122,6 +122,48 @@ class FinsPLCMemoryAreas:
         self.DATA_REGISTER = b'\xBC'
         self.CLOCK_PULSES = b'\x07'
         self.CONDITION_FLAGS = b'\x07'
+
+        # Precompute all necessary lookup data for efficiency
+        self._precompute_area_info()
+
+    def _precompute_area_info(self):
+        """
+        Precomputes internal maps and sets for efficient lookups of memory area information.
+        This avoids repeated iteration over attributes.
+        """
+        self._memory_area_names_map = {}
+        self._bit_area_codes_cache = set()
+        self._word_area_codes_cache = set()
+        self._all_memory_area_codes_list = []
+
+        # Populate name map and initial bit/word sets based on attribute names
+        for attr_name in dir(self):
+            if not attr_name.startswith('_') and isinstance(getattr(self, attr_name), bytes):
+                code = getattr(self, attr_name)
+                self._memory_area_names_map[code] = attr_name
+                if code not in self._all_memory_area_codes_list:
+                    self._all_memory_area_codes_list.append(code)
+
+        # Explicitly define bit areas based on the original logic
+        explicit_bit_codes = [
+            self.CIO_BIT, self.WORK_BIT, self.HOLDING_BIT, self.AUXILIARY_BIT,
+            self.CIO_BIT_FORCED, self.WORK_BIT_FORCED, self.HOLDING_BIT_FORCED,
+            self.TIMER_FLAG, self.COUNTER_FLAG, self.TIMER_FLAG_FORCED,
+            self.COUNTER_FLAG_FORCED, self.DATA_MEMORY_BIT, self.EM_CURR_BANK_BIT,
+            self.TASK_FLAG_BIT, self.CLOCK_PULSES, self.CONDITION_FLAGS
+        ]
+        bit_by_suffix = [getattr(self, attr) for attr in dir(self) if attr.endswith('_BIT')]
+        self._bit_area_codes_cache.update(explicit_bit_codes + bit_by_suffix)
+
+        # Explicitly define word areas based on the original logic
+        explicit_word_codes = [
+            self.CIO_WORD, self.WORK_WORD, self.HOLDING_WORD, self.AUXILIARY_WORD,
+            self.CIO_WORD_FORCED, self.WORK_WORD_FORCED, self.HOLDING_WORD_FORCED,
+            self.TIMER_WORD, self.COUNTER_WORD, self.DATA_MEMORY_WORD,
+            self.EM_CURR_BANK_WORD, self.EM_CURR_BANK_NUMBER, self.INDEX_REGISTER, self.DATA_REGISTER
+        ]
+        word_by_suffix = [getattr(self, attr) for attr in dir(self) if attr.endswith('_WORD')]
+        self._word_area_codes_cache.update(explicit_word_codes + word_by_suffix)
     
     
     ## These are like the helper functions first is the 
@@ -130,6 +172,27 @@ class FinsPLCMemoryAreas:
     # is it a word aea  
     
     ###--> If possible combine this as the internal function and create a common function giving the whole definition 
+
+    def list_all_memory_areas(self):
+        """
+        Prints a formatted list of all defined FINS memory area variables and their byte codes.
+        This is useful for debugging and reference.
+        """
+        print("Defined FINS Memory Areas:")
+        print("-" * 40)
+
+        all_areas = []
+        for attr_name in dir(self):
+            # Filter for public attributes that are bytes
+            if not attr_name.startswith('_') and isinstance(getattr(self, attr_name), bytes):
+                all_areas.append((attr_name, getattr(self, attr_name)))
+
+        # Sort alphabetically for consistent, readable output
+        all_areas.sort()
+
+        for name, code in all_areas:
+            print(f"{name.ljust(25)} = {code}")
+
     def get_memory_area_name(self, area_code: bytes) -> str:
         """
         Get the human-readable name for a memory area code.
@@ -140,11 +203,9 @@ class FinsPLCMemoryAreas:
         Returns:
             String name of the memory area or 'UNKNOWN' if not found
         """
-        for attr_name in dir(self):
-            if not attr_name.startswith('_') and attr_name != 'get_memory_area_name':   ## This line was included if there is any intermediate areas that you dont want make public
-                if getattr(self, attr_name) == area_code:
-                    return attr_name
-        print(f"Unknown area code: {area_code.hex()}")
+        name = self._memory_area_names_map.get(area_code)
+        if name:
+            return name
         return 'UNKNOWN'
     
     def is_bit_area(self, area_code: bytes) -> bool:
@@ -157,17 +218,7 @@ class FinsPLCMemoryAreas:
         Returns:
             True if bit area, False otherwise
         """
-        bit_areas = [
-            self.CIO_BIT, self.WORK_BIT, self.HOLDING_BIT, self.AUXILIARY_BIT,
-            self.CIO_BIT_FORCED, self.WORK_BIT_FORCED, self.HOLDING_BIT_FORCED,
-            self.TIMER_FLAG, self.COUNTER_FLAG, self.TIMER_FLAG_FORCED, 
-            self.COUNTER_FLAG_FORCED, self.DATA_MEMORY_BIT
-        ]
-        # Add all EM bit areas
-        bit_areas.extend([getattr(self, attr) for attr in dir(self) 
-                         if attr.endswith('_BIT') and not attr.startswith('_')])
-        
-        return area_code in bit_areas
+        return area_code in self._bit_area_codes_cache
     
     def is_word_area(self, area_code: bytes) -> bool:
         """
@@ -179,13 +230,54 @@ class FinsPLCMemoryAreas:
         Returns:
             True if word area, False otherwise
         """
-        word_areas = [
-            self.CIO_WORD, self.WORK_WORD, self.HOLDING_WORD, self.AUXILIARY_WORD,
-            self.CIO_WORD_FORCED, self.WORK_WORD_FORCED, self.HOLDING_WORD_FORCED,
-            self.TIMER_WORD, self.COUNTER_WORD, self.DATA_MEMORY_WORD
-        ]
-        # Add all EM word areas
-        word_areas.extend([getattr(self, attr) for attr in dir(self) 
-                          if attr.endswith('_WORD') and not attr.startswith('_')])
-        
-        return area_code in word_areas
+        return area_code in self._word_area_codes_cache
+
+    def get_all_memory_area_codes(self) -> list[bytes]:
+        """
+        Returns a list of all unique defined FINS memory area codes.
+
+        Returns:
+            A list of bytes, where each item is a memory area code.
+        """
+        # Return a copy to prevent external modification of the internal list
+        return list(self._all_memory_area_codes_list)
+
+    def get_memory_area_details(self, area_code: bytes) -> dict:
+        """
+        Returns comprehensive details for a given FINS memory area code.
+
+        Args:
+            area_code: The memory area code bytes.
+
+        Returns:
+            A dictionary containing:
+            - 'name': Human-readable name of the memory area.
+            - 'is_bit_area': True if it's a bit-accessible area, False otherwise.
+            - 'is_word_area': True if it's a word-accessible area, False otherwise.
+            - 'code': The original byte code.
+            Returns an empty dictionary if the area_code is not found.
+        """
+        if area_code not in self._memory_area_names_map:
+            print(f"Details requested for unknown area code: {area_code.hex()}")
+            return {}
+
+        return {
+            'name': self.get_memory_area_name(area_code),
+            'is_bit_area': self.is_bit_area(area_code),
+            'is_word_area': self.is_word_area(area_code),
+            'code': area_code
+        }
+
+
+if __name__ == '__main__':
+    # Create an instance of the class
+    memory_areas = FinsPLCMemoryAreas()
+
+    # Call the new function to print all defined memory areas
+    memory_areas.list_all_memory_areas()
+
+    # Example of using the other helper functions
+    print("\n" + "="*40)
+    print("Example of getting details for a specific code:")
+    details = memory_areas.get_memory_area_details(memory_areas.DATA_MEMORY_WORD)
+    print(details)

@@ -286,33 +286,9 @@ class FinsAddressParser:
         
         return area_names.get(mtype, f'Unknown ({mtype})')
 
-    def is_bit_address(self, address: str) -> bool:
-        """
-        Check if address is a bit address (contains '.').
-        
-        Args:
-            address: Address string
-            
-        Returns:
-            True if bit address, False if word address
-        """
-        return '.' in address
+   
 
-    def validate_address(self, address: str) -> bool:
-        """
-        Validate if an address is properly formatted.
-        
-        Args:
-            address: Address string to validate
-            
-        Returns:
-            True if valid, False otherwise
-        """
-        try:
-            self.parse(address)
-            return True
-        except (ValueError, AttributeError):
-            return False
+    
 
 
 # class FinsAddressHelper:
