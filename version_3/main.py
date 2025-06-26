@@ -3,7 +3,7 @@ import time
 def main():
         with FinsUdpConnection('192.168.137.2') as finsudp:
             # The connect() method is automatically called here
-            data, is_success, msg = finsudp.read("0.01", 1)
+            data, is_success, msg = finsudp.read('T1000', 1)
             if is_success:
                 print(f"Read successful: {data}")
             else:
