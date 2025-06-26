@@ -23,10 +23,10 @@ class FinsUdpConnection(FinsConnection):
     This class handles FINS communication over UDP networks.
     """
     
-    def __init__(self, host: str, port: int = 9600, timeout: float = 5.0,
+    def __init__(self, host: str, port: int = 9600, timeout: int = 5,
                  dest_network: int = 0, dest_node: int = 0, dest_unit: int = 0,
                  src_network: int = 0, src_node: int = 1, src_unit: int = 0,
-                 destfinsadr: str = "", srcfinsadr: str = ""):
+                 destfinsadr: str = "0.0.0", srcfinsadr: str = "0.1.0"):
         """
         Initialize UDP connection.
         
@@ -113,14 +113,16 @@ class FinsUdpConnection(FinsConnection):
         
         try:
             # Send command frame
+            print("Actual_program finsCommand frame", fins_command_frame)
+            # print("Actual_program finsCommand address", self.addr)
             self.socket.sendto(fins_command_frame, self.addr)
             
             # Receive response
-            response_data, addr = self.socket.recvfrom(4096)
-            
+            response_data = self.socket.recv(4096)
+            # print("came data actual program\n",response_data)
             # Verify response came from expected address
-            if addr[0] != self.addr[0]:
-                raise ConnectionError(f"Response from unexpected address: {addr[0]}")
+            # if addr[0] != self.addr[0]:
+            #     raise ConnectionError(f"Response from unexpected address: {addr[0]}")
             
             return response_data
             
@@ -162,7 +164,7 @@ class FinsUdpConnection(FinsConnection):
                 return False, f"Unknown FINS error: {response_data_end_code}"
         
     
-    def read(self, memory_area_code, count: int, service_id: int = 1 ) -> Tuple[Union[bytes, bool],bool,str]:
+    def read(self, memory_area_code, readsize: int, service_id: int = 0 ) -> Tuple[Union[bytes, bool],bool,str]:
         """
         Read data from PLC memory area using FINS command codes.
         
@@ -174,26 +176,44 @@ class FinsUdpConnection(FinsConnection):
         Returns:
             Response data
         """
+        readnum = readsize // 990
+        remainder = readsize % 990
         
-        info = self.address_parser.parse(memory_area_code,count)
-        rsize = list(int(count).to_bytes(2,'big'))
-        sid = service_id.to_bytes(1,'big')
-        # creating the command_frame 
-        finsary = bytearray(8)
-        finsary[0:2] = self.command_codes.MEMORY_AREA_READ
-        finsary[2] = info['memory_type_code']
-        finsary[3:5] = info['offset_bytes']
-        finsary[5] = 0x00
-        finsary[6] = rsize[0]
-        finsary[7] = rsize[1]
+        data = bytes()
+        for cnt in range(readnum + 1):
+            info = self.address_parser.parse(memory_area_code,cnt * 990)
+            print("offset_bytes",info['offset_bytes'])
+            if cnt == readnum:
+                rsize = list(int(remainder).to_bytes(2,'big'))
+            else:
+                rsize = list(int(990).to_bytes(2,'big'))
+            
+            
+            sid = service_id.to_bytes(1,'big')
+            # creating the command_frame 
+            finsary = bytearray(8)
+            finsary[0:2] = self.command_codes.MEMORY_AREA_READ
+            finsary[2] = info['memory_type_code']
+            finsary[3:5] = info['offset_bytes']
+            finsary[5] = 0x00
+            finsary[6] = rsize[0]
+            finsary[7] = rsize[1]
+            
+            # Build FINS command frame using the command code
+            command_frame = self.fins_command_frame(command_code=finsary,service_id=sid)   
+            response_data = self.execute_fins_command_frame(command_frame)
+            response_frame = self._parse_response(response_data)
+            is_success, msg = self._check_response(response_frame.end_code)
+            
+            if is_success:
+                data += response_frame.text
+            
+            else: 
+                print(f"Error Occured only able to get the size {cnt*990}")
+                break
+                # return data,is_success,msg
         
-        # Build FINS command frame using the command code
-        command_frame = self.fins_command_frame(command_code=finsary,service_id=sid)        
-        # Execute command
-        response_data = self.execute_fins_command_frame(command_frame)
-        # Parse response using FinsResponseFrame
-        response_frame = self._parse_response(response_data)
-        is_success, msg = self._check_response(response_frame.end_code)
+            
         if is_success:
             return response_frame.text,is_success,msg
         else:

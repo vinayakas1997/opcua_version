@@ -9,14 +9,15 @@ import time
 from abc import ABCMeta, abstractmethod
 from typing import List, Union, Any
 
-from command_codes import FinsCommandCode
-from frames import FinsResponseFrame, FinsCommandFrame
-from memory_areas import FinsPLCMemoryAreas
+# from command_codes import FinsCommandCode
+from OMRON_FINS_PROTOCOL.Fins_domain.frames import FinsCommandFrame
+# from frames import FinsCommandFrame
+# from memory_areas import FinsPLCMemoryAreas
 # from utils import reverse_word_order, format_address
 
 __version__ = "0.1.0"
 
-
+# (metaclass=ABCMeta)
 class FinsConnection(metaclass=ABCMeta):
     """
     Abstract base class for FINS protocol connections.
@@ -29,6 +30,8 @@ class FinsConnection(metaclass=ABCMeta):
                  dest_network: int = 0, dest_node: int = 0, dest_unit: int = 0,
                  src_network: int = 0, src_node: int = 1, src_unit: int = 0,
                  destfinsadr: str = "0.0.0", srcfinsadr: str = "0.1.0"):
+    # def __init__(self, host: str, port: int = 9600,
+    #              destfinsadr: str = "0.0.0", srcfinsadr: str = "0.1.0"):
         """
         Initialize connection parameters.
         
@@ -53,9 +56,11 @@ class FinsConnection(metaclass=ABCMeta):
                 hostadr = host.split('.')
                 destfins[1] = hostadr[3]
             dest_network, dest_node, dest_unit = map(int, destfins)
-            
+            print("My program",dest_network, dest_node, dest_unit)
+            # dest_network, dest_node, dest_unit = destfins
         if srcfinsadr:
             srcfins = srcfinsadr.split('.')
+            
             src_network, src_node, src_unit = map(int, srcfins)
         
         # Set FINS addressing parameters
@@ -84,8 +89,8 @@ class FinsConnection(metaclass=ABCMeta):
         pass
     
     def fins_command_frame(self, command_code: bytes, text: bytes = b'', 
-                      service_id: bytes = b'\x60', icf: bytes = b'\x80', 
-                      gct: bytes = b'\x07', rsv: bytes = b'\x00') -> bytes:
+                      service_id: bytes = b'\x00', icf: bytes = b'\x80', 
+                      gct: bytes = b'\x02', rsv: bytes = b'\x00') -> bytes:
         """
         Build a complete FINS command frame using the FinsCommandFrame class.
         
@@ -115,10 +120,12 @@ class FinsConnection(metaclass=ABCMeta):
             sa2=self.srce_unit_add.to_bytes(1, 'big'),
             sid=service_id
         )
-        
+        # print("my program Fins header ", frame.header)
         # Set command data
         frame.command_code = command_code
         frame.text = text
         
         return frame.bytes()
     
+# if __name__ == "__main__":
+#     finscheck = FinsConnection("192.168.137.2")

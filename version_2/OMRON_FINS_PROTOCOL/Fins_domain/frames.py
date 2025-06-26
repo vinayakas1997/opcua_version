@@ -52,7 +52,7 @@ class FinsHeader:
         self.sa1 = sa1
         self.sa2 = sa2
         self.sid = sid
-    
+        print(self.dna,self.da1,self.da2,self.sna,self.sa1,self.sa2,self.sid)
     def bytes(self) -> bytes:
         """
         Convert header to bytes for transmission.

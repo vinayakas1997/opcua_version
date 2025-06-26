@@ -4,7 +4,7 @@ FINS Address Parser
 This module handles parsing of PLC addresses and converts them to FINS protocol format.
 """
 
-from memory_areas import FinsPLCMemoryAreas
+from OMRON_FINS_PROTOCOL.Fins_domain.memory_areas import FinsPLCMemoryAreas
 
 __version__ = "0.1.0"
 
@@ -132,9 +132,9 @@ class FinsAddressParser:
         
         if mtype == 'D':  # Data Memory
             memory_type = self.memory_areas.DATA_MEMORY_WORD
-            addr_num = int(address[1:]) + offset
-            moffset = list(addr_num.to_bytes(2, 'big'))
-            
+            # addr_num = int(address[1:]) + offset
+            # moffset = list(addr_num.to_bytes(2, 'big'))
+            moffset = list((int(address[1:])+offset).to_bytes(2,'big'))
         elif mtype == 'E':  # Extended Memory
             if len(address) < 4:
                 raise ValueError(f"Invalid extended memory address format: {address}")
