@@ -40,10 +40,11 @@ class FinsPLCMemoryAreas:
         self.AUXILIARY_WORD = b'\xB3'
         
         # Timer and Counter Areas
-        self.TIMER_FLAG = b'\x09'
+        self.TIMER_FLAG = b'\x09' 
         self.COUNTER_FLAG = b'\x09'
         self.TIMER_FLAG_FORCED = b'\x49'
         self.COUNTER_FLAG_FORCED = b'\x49'
+             # the timer can have many alias we ca also use the x89 or x81 
         self.TIMER_WORD = b'\x89'
         self.COUNTER_WORD = b'\x89'
         
@@ -122,6 +123,13 @@ class FinsPLCMemoryAreas:
         self.CLOCK_PULSES = b'\x07'
         self.CONDITION_FLAGS = b'\x07'
     
+    
+    ## These are like the helper functions first is the 
+    # get_memeory_area_name - where if you have the area code get the corresponding name 
+    # is it bit area
+    # is it a word aea  
+    
+    ###--> If possible combine this as the internal function and create a common function giving the whole definition 
     def get_memory_area_name(self, area_code: bytes) -> str:
         """
         Get the human-readable name for a memory area code.
@@ -133,9 +141,10 @@ class FinsPLCMemoryAreas:
             String name of the memory area or 'UNKNOWN' if not found
         """
         for attr_name in dir(self):
-            if not attr_name.startswith('_') and attr_name != 'get_memory_area_name':
+            if not attr_name.startswith('_') and attr_name != 'get_memory_area_name':   ## This line was included if there is any intermediate areas that you dont want make public
                 if getattr(self, attr_name) == area_code:
                     return attr_name
+        print(f"Unknown area code: {area_code.hex()}")
         return 'UNKNOWN'
     
     def is_bit_area(self, area_code: bytes) -> bool:
