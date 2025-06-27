@@ -3,27 +3,24 @@ from OMRON_FINS_PROTOCOL.components.conversion import *
 
 import time 
 def main():
-        # def bcd_to_decimal(bcd):
-        #     return ((bcd >> 4) * 10) + (bcd & 0x0F)
-        # def bcd_to_decimal2(bcd_bytes):
-        #     return ((bcd_bytes[0] >> 4) * 1000) + ((bcd_bytes[0] & 0x0F) * 100) + \
-        #         ((bcd_bytes[1] >> 4) * 10) + (bcd_bytes[1] & 0x0F)
-        with FinsUdpConnection('192.168.137.2') as finsudp:
-            for i in range(10):
-                data, is_success, msg = finsudp.read('T1000', 1)
-                if is_success:
-                    print(f"The T1000 present value: {bcd_to_decimal(data)}")   
-                else:
-                    print(f"Read failed: {msg}")
-                time.sleep(0.5)
-
-        with FinsUdpConnection('192.168.137.2') as finsudp2:
-            for i in range(10):
-                data,_,_ = finsudp2.read('C0001', 1)
-                print("The C0001 present value ",toInt16(data))
-                time.sleep(5)
-                
+        with FinsUdpConnection('192.168.137.2') as finsudp5:
+            #Read CIO area data
+            print("-------CIO Area--------")
+            data,_,_ = finsudp5.read('10',1)
+            print("TheW1 actual stores value #20 the expected value 32\n value read  ",toInt16(data))
         
-
+        with FinsUdpConnection('192.168.137.2') as finsudp6:
+            #Read CIO area data
+            print("-------CIO Area--------")
+            data,_,_ = finsudp6.read('10.05',1)
+            print("The CIO-10.05 is 1 at this position\n read data ", data)
+        
+        with FinsUdpConnection('192.168.137.2') as finsudp6:
+            print("-------CIO Area--------")
+            data,_,_ = finsudp6.read('2.01',1)
+            print("The CIO-2.01 is 1 at this position\n read data ", data)
+            
+            
+        
 if __name__ == "__main__":
     main()

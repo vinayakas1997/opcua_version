@@ -13,6 +13,7 @@ from OMRON_FINS_PROTOCOL.Fins_domain.command_codes import FinsCommandCode
 from OMRON_FINS_PROTOCOL.Fins_domain.frames import FinsResponseFrame
 from OMRON_FINS_PROTOCOL.Fins_domain.fins_error import FinsResponseError
 from OMRON_FINS_PROTOCOL.Fins_domain.mem_address_parser import FinsAddressParser
+
 __version__ = "0.1.0"
 
 
@@ -113,8 +114,8 @@ class FinsUdpConnection(FinsConnection):
         
         try:
             # Send command frame
-            # print("Actual_program finsCommand frame", fins_command_frame)
-            # print("Actual_program finsCommand address", self.addr)
+            print("Sending finsCommand frame", fins_command_frame)
+            print(" finsCommand address", self.addr)
             self.socket.sendto(fins_command_frame, self.addr)
             
             # Receive response
@@ -195,7 +196,10 @@ class FinsUdpConnection(FinsConnection):
             finsary[0:2] = self.command_codes.MEMORY_AREA_READ
             finsary[2] = info['memory_type_code']
             finsary[3:5] = info['offset_bytes']
-            finsary[5] = 0x00
+            if info['address_type'] == 'bit':
+                finsary[5] = info['bit_number']
+            else:
+                finsary[5] = 0x00
             finsary[6] = rsize[0]
             finsary[7] = rsize[1]
             
