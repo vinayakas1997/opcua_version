@@ -5,7 +5,7 @@ This module provides UDP implementation of the FINS protocol connection.
 """
 
 import socket
-from typing import Optional,Tuple,Union
+from typing import Optional,Tuple,Union,Any
 
 # Fix the import path - adjust based on your actual project structure
 from OMRON_FINS_PROTOCOL.Fins_domain.connection import FinsConnection
@@ -14,6 +14,7 @@ from OMRON_FINS_PROTOCOL.Fins_domain.frames import FinsResponseFrame
 from OMRON_FINS_PROTOCOL.Fins_domain.fins_error import FinsResponseError
 from OMRON_FINS_PROTOCOL.Fins_domain.mem_address_parser import FinsAddressParser
 from OMRON_FINS_PROTOCOL.components import *
+from OMRON_FINS_PROTOCOL.exception import *
 
 __version__ = "0.1.0"
 
@@ -160,8 +161,8 @@ class FinsUdpConnection(FinsConnection):
                 # Fallback if error code not recognized
                 return False, f"Unknown FINS error: {response_data_end_code}"
         
-    
-    def read(self, memory_area_code, readsize: int = 4, _type = None ,service_id: int = 0 ) -> Tuple[Union[bytes, bool],bool,str]:
+    # def read(self, memory_area_code, readsize: int = 4, _type: str = 'INT16' ,service_id: int = 0 ) -> Tuple[Union[bytes, bool],bool,str]:
+    def read(self, memory_area_code, _type: str = 'INT16' ,service_id: int = 0 ) -> Tuple[Any,bool,str]:
         """
         Read data from PLC memory area using FINS command codes.
         
@@ -175,39 +176,58 @@ class FinsUdpConnection(FinsConnection):
         """
         
         data_type_mapping = {
-            'INT16' : [2, toInt16],
-            'UINT16' : [2, toUInt16],
-            'INT32' : [4, toInt32],
-            'UINT32' : [4, toUInt32],
-            'INT64' : [8, toInt64],
-            'UINT64' : [8, toUInt64],
-            'FLOAT' : [4, toFloat],
-            'DOUBLE' : [8, toDouble],
+            'INT16' : [1, toInt16],
+            'UINT16' : [1, toUInt16],
+            'INT32' : [2, toInt32],
+            'UINT32' : [2, toUInt32],
+            'INT64' : [4, toInt64],
+            'UINT64' : [4, toUInt64],
+            'FLOAT' : [2, toFloat],
+            'DOUBLE' : [4, toDouble],
             'bcd_to_decimal' : [1,bcd_to_decimal]
         }
         
+        # data_type_mapping = {
+        #     'I16' : [1, toInt16],
+        #     'UI16' : [1, toUInt16],
+        #     'I32' : [2, toInt32],
+        #     'UI32' : [2, toUInt32],
+        #     'I64' : [4, toInt64],
+        #     'UI64' : [4, toUInt64],
+        #     'F' : [2, toFloat],
+        #     'D' : [4, toDouble],
+        #     'BCD2D' : [1,bcd_to_decimal]
+        # }
         
          # Normalize type_
         if _type is not None:
             _type = _type.upper()
+            if _type not in data_type_mapping:
+                raise FinsDataError(
+                        f"Invalid data type: '{_type}'. Allowed types are: {', '.join(data_type_mapping.keys())}",
+                        error_code="INVALID_TYPE"
+                        )
         else:
             _type = 'INT16'
 
-        # Rule 1: If readsize == 1 → type_ must be INT16 or UINT16
-        if readsize == 1:
-            if _type not in ['INT16', 'UINT16']:
-                raise ValueError("When readsize is 1, only INT16 or UINT16 are allowed.")
+        # # Rule 1: If readsize == 1 → type_ must be INT16 or UINT16
+        # if readsize == 1:
+        #     if _type not in ['INT16', 'UINT16']:
+        #         raise ValueError("When readsize is 1, only INT16 or UINT16 are allowed.")
         
-        # Rule 2: If readsize == 2 (default) and type_ is set to a higher-width type, use mapping size
-        if readsize == 2 and _type in data_type_mapping:
-            readsize = data_type_mapping[_type][0]
+        # # Rule 2: If readsize == 2 (default) and type_ is set to a higher-width type, use mapping size
+        # if readsize == 2 and _type in data_type_mapping:
+        #     readsize = data_type_mapping[_type][0]
 
-        # Rule 3: Enforce correct readsize vs type
-        if readsize < 2 and _type not in ['INT16', 'UINT16']:
-            raise ValueError("Types other than INT16/UINT16 require at least 2 bytes.")
-        if readsize < 4 and _type in ['INT32', 'UINT32', 'INT64', 'UINT64', 'FLOAT', 'DOUBLE']:
-            raise ValueError(f"{_type} requires at least {data_type_mapping[_type][0]} bytes.")
-            
+        # # Rule 3: Enforce correct readsize vs type
+        # if readsize < 2 and _type not in ['INT16', 'UINT16']:
+        #     raise ValueError("Types other than INT16/UINT16 require at least 2 bytes.")
+        # if readsize < 4 and _type in ['INT32', 'UINT32', 'INT64', 'UINT64', 'FLOAT', 'DOUBLE']:
+        #     raise ValueError(f"{_type} requires at least {data_type_mapping[_type][0]} bytes.")
+        if '.' in memory_area_code:
+            readsize = 1
+        else:
+            readsize = data_type_mapping[_type][0]
         conversion_function = data_type_mapping[_type][1]     
         readnum = readsize // 990
         remainder = readsize % 990
@@ -262,6 +282,9 @@ class FinsUdpConnection(FinsConnection):
                 return converted_data, is_success, msg
         
         # If the loop completes, all chunks were read successfully
+        if len(data) % 2 != 0:
+            data = b'\x00' + data
+        # print("Len ->",len(data), "    Data ->", data)
         converted_data = conversion_function(data)
         return converted_data, True, 'Read successful'
     

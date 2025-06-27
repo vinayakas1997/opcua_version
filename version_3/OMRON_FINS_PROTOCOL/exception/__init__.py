@@ -2,7 +2,7 @@
 Custom exceptions for OMRON FINS Protocol
 """
 
-from .exception.exception_rules import ( # type: ignore
+from .exception_rules import ( # type: ignore
     FinsBaseException,
     FinsConnectionError,
     FinsTimeoutError,
