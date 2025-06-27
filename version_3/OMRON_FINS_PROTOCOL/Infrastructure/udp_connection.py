@@ -13,6 +13,7 @@ from OMRON_FINS_PROTOCOL.Fins_domain.command_codes import FinsCommandCode
 from OMRON_FINS_PROTOCOL.Fins_domain.frames import FinsResponseFrame
 from OMRON_FINS_PROTOCOL.Fins_domain.fins_error import FinsResponseError
 from OMRON_FINS_PROTOCOL.Fins_domain.mem_address_parser import FinsAddressParser
+from OMRON_FINS_PROTOCOL.components import *
 
 __version__ = "0.1.0"
 
@@ -27,7 +28,7 @@ class FinsUdpConnection(FinsConnection):
     def __init__(self, host: str, port: int = 9600, timeout: int = 5,
                  dest_network: int = 0, dest_node: int = 0, dest_unit: int = 0,
                  src_network: int = 0, src_node: int = 1, src_unit: int = 0,
-                 destfinsadr: str = "0.0.0", srcfinsadr: str = "0.1.0"):
+                 destfinsadr: str = "0.0.0", srcfinsadr: str = "0.1.0",debug = False):
         """
         Initialize UDP connection.
         
@@ -65,6 +66,8 @@ class FinsUdpConnection(FinsConnection):
         self.command_codes = FinsCommandCode()
         # Initialize address parser
         self.address_parser = FinsAddressParser()
+        # debugging mode 
+        self.debug = debug
     
     def connect(self) -> None:
         """
@@ -113,18 +116,14 @@ class FinsUdpConnection(FinsConnection):
             raise ConnectionError("UDP socket not initialized")
         
         try:
-            # Send command frame
-            print("Sending finsCommand frame", fins_command_frame)
-            print(" finsCommand address", self.addr)
+            if self.debug == True:
+                # Send command frame
+                print("  Sending FinsCommand frame (The complete frame): ", fins_command_frame)
+                print("  FinsCommand Destination address(IP,port): " , self.addr)
             self.socket.sendto(fins_command_frame, self.addr)
             
             # Receive response
             response_data = self.socket.recv(4096)
-            # print("came data actual program\n",response_data)
-            # Verify response came from expected address
-            # if addr[0] != self.addr[0]:
-            #     raise ConnectionError(f"Response from unexpected address: {addr[0]}")
-            
             return response_data
             
         except socket.timeout:
@@ -145,9 +144,6 @@ class FinsUdpConnection(FinsConnection):
         response_frame = FinsResponseFrame()
         response_frame.from_bytes(response_data)
         
-        # Check if command was successful (end code 0x0000 means success)
-        # is_success = response_frame.end_code == b'\x00\x00'
-        
         return response_frame
     
     def _check_response(self,response_data_end_code:bytes) -> Tuple[bool,str]:
@@ -165,7 +161,7 @@ class FinsUdpConnection(FinsConnection):
                 return False, f"Unknown FINS error: {response_data_end_code}"
         
     
-    def read(self, memory_area_code, readsize: int, service_id: int = 0 ) -> Tuple[Union[bytes, bool],bool,str]:
+    def read(self, memory_area_code, readsize: int = 4, _type = None ,service_id: int = 0 ) -> Tuple[Union[bytes, bool],bool,str]:
         """
         Read data from PLC memory area using FINS command codes.
         
@@ -177,20 +173,66 @@ class FinsUdpConnection(FinsConnection):
         Returns:
             Response data
         """
+        
+        data_type_mapping = {
+            'INT16' : [2, toInt16],
+            'UINT16' : [2, toUInt16],
+            'INT32' : [4, toInt32],
+            'UINT32' : [4, toUInt32],
+            'INT64' : [8, toInt64],
+            'UINT64' : [8, toUInt64],
+            'FLOAT' : [4, toFloat],
+            'DOUBLE' : [8, toDouble],
+            'bcd_to_decimal' : [1,bcd_to_decimal]
+        }
+        
+        
+         # Normalize type_
+        if _type is not None:
+            _type = _type.upper()
+        else:
+            _type = 'INT16'
+
+        # Rule 1: If readsize == 1 → type_ must be INT16 or UINT16
+        if readsize == 1:
+            if _type not in ['INT16', 'UINT16']:
+                raise ValueError("When readsize is 1, only INT16 or UINT16 are allowed.")
+        
+        # Rule 2: If readsize == 2 (default) and type_ is set to a higher-width type, use mapping size
+        if readsize == 2 and _type in data_type_mapping:
+            readsize = data_type_mapping[_type][0]
+
+        # Rule 3: Enforce correct readsize vs type
+        if readsize < 2 and _type not in ['INT16', 'UINT16']:
+            raise ValueError("Types other than INT16/UINT16 require at least 2 bytes.")
+        if readsize < 4 and _type in ['INT32', 'UINT32', 'INT64', 'UINT64', 'FLOAT', 'DOUBLE']:
+            raise ValueError(f"{_type} requires at least {data_type_mapping[_type][0]} bytes.")
+            
+        conversion_function = data_type_mapping[_type][1]     
         readnum = readsize // 990
         remainder = readsize % 990
         
         data = bytes() # Initialize accumulator for all read data
         for cnt in range(readnum + 1):
             info = self.address_parser.parse(memory_area_code,cnt * 990)
-            # print("offset_bytes",info['offset_bytes'])
+            if self.debug == True:
+                print("----------DEBUG MODE -------------")
+                print(f"  Address Given: {memory_area_code}")
+                print(f"  Type: {info['address_type']}")
+                print(f"  Memory Area: {info['memory_area']}")
+                print(f"  Word Address: {info['word_address']}")
+                print(f"  Bit Number: {info['bit_number']}")
+                print(f"  Memory Type Code: {info['memory_type_code']}")
+                print(f"  Offset Bytes: {info['offset_bytes']}")
+                print(f"  Fins_Format: {info['fins_format']}") 
+            
             if cnt == readnum:
                 rsize = list(int(remainder).to_bytes(2,'big'))
             else:
                 rsize = list(int(990).to_bytes(2,'big'))
             
-            
             sid = service_id.to_bytes(1,'big')
+            
             # creating the command_frame 
             finsary = bytearray(8)
             finsary[0:2] = self.command_codes.MEMORY_AREA_READ
@@ -216,10 +258,12 @@ class FinsUdpConnection(FinsConnection):
                 # An error occurred during this chunk read
                 print(f"Error Occurred at chunk {cnt*990}: {msg}")
                 # Return the data accumulated so far, along with the error status and message
-                return data, is_success, msg
+                converted_data = conversion_function(data)
+                return converted_data, is_success, msg
         
         # If the loop completes, all chunks were read successfully
-        return data, True, 'Read successful'
+        converted_data = conversion_function(data)
+        return converted_data, True, 'Read successful'
     
     
     

@@ -308,46 +308,6 @@ class FinsAddressParser:
 
    
 
-    
-
-
-# class FinsAddressHelper:
-#     """
-#     Helper class that combines address parsing with your existing FINS class structure.
-#     """
-    
-#     def __init__(self):
-#         self.parser = FinsAddressParser()
-    
-#     def parse_any_address(self, address: str, offset: int = 0) -> dict:
-#         """
-#         Main entry point - parse any address (word or bit) automatically.
-        
-#         Args:
-#             address: Address string (e.g., 'A100' or 'A100.01')
-#             offset: Offset to add to the address
-            
-#         Returns:
-#             Dictionary with parsed address information
-#         """
-#         return self.parser.parse(address, offset)
-    
-#     def offset(self, address: str, offset: int = 0) -> tuple:
-#         """
-#         Compatibility method that matches your existing offset method signature.
-        
-#         Args:
-#             address: Address string (e.g., 'D1000', 'W100')
-#             offset: Offset to add to the address
-            
-#         Returns:
-#             Tuple of (memory_type_int, offset_bytes_list)
-#         """
-#         memory_type_bytes, moffset = self.parser.parse_address(address, offset)
-#         # Convert bytes to int for compatibility with your existing code
-#         memory_type_int = int.from_bytes(memory_type_bytes, 'big')
-#         return memory_type_int, moffset
-
 
 # Example usage and testing
 if __name__ == "__main__":

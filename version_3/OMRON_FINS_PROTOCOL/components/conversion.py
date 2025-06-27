@@ -100,7 +100,7 @@ def toDouble(  data):
     return outdata
 
 def toString(  data):
-    outdata = data.decode("utf-8")
+    outdata = data.decode("ascii")
     return outdata
 
 
