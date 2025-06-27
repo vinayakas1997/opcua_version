@@ -45,8 +45,8 @@ class FinsPLCMemoryAreas:
         self.TIMER_FLAG_FORCED = b'\x49'
         self.COUNTER_FLAG_FORCED = b'\x49'
              # the timer can have many alias we ca also use the x89 or x81 
-        self.TIMER_WORD = b'\x89'
-        self.COUNTER_WORD = b'\x89'
+        self.TIMER_WORD = b'\x81'
+        self.COUNTER_WORD = b'\x81'
         
         # Data Memory Area
         self.DATA_MEMORY_BIT = b'\x02'
