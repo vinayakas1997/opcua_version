@@ -1,0 +1,42 @@
+/* body {
+    background-color: #f0f8ff; /* light blue 
+    
+} */
+
+strong,
+b {
+    font-weight: bold;
+    color: var(--color-primary);
+}
+
+.container-title {
+    text-align: center;
+}
+
+.row-bold strong,
+.row-bold b {
+    color: black; /* or your custom color */
+}
+
+.compact-card {
+    padding-top: 10px;
+    padding-bottom: 10px;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    /* Optionally reduce total height if needed */
+    min-height: auto;
+}
+
+.card-title {
+    text-align: center;
+}
+
+.Add-to-table-button{
+    display: flex;
+    justify-content: center;
+}
+
+.button-wrapper {
+    display: flex;
+    justify-content: center;
+}
