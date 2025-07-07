@@ -3,6 +3,7 @@ class FinsError(Exception):
 
 class FinsResponseError(FinsError):
     def __init__(self, EndCode):
+        self.actual_error_code = EndCode
         self.endcode = EndCode.hex()
         if self.endcode == "0101":
             self.message = self.endcode + ": Local node not in network (自ノード ネットワーク未加入)"
@@ -126,9 +127,9 @@ class FinsResponseError(FinsError):
             self.message = self.endcode + ": Table missing (登録テーブルなし)"
 
         else:
-            self.message = self.endcode
+            self.message = self.endcode + ": Unknown error code"
 
-        self.message = "FINS ERROR " + self.message
+        self.message = "FINS ERROR " + str(self.actual_error_code)+ ": " + self.message
 
     def __str__(self):
         return repr(self.message)
